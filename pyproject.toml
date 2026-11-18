@@ -16,3 +16,22 @@ agentproof = "agentproof:main"
 [build-system]
 requires = ["uv_build>=0.10.3,<0.11.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/W: style errors, F: real bugs (unused imports, undefined names),
+# I: import order, B: common bug patterns, UP: modern Python syntax
+select = ["E", "W", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
