@@ -40,6 +40,26 @@ def test_run_saves_transcripts(tmp_path: Path) -> None:
     assert "PASS  greeting" in result.output
     assert "1/1 cases passed" in result.output
     assert (out / "greeting.json").exists()
+    assert (out / "summary.json").exists()
+    assert (out / "report.md").exists()
+
+
+def test_report_shows_a_previous_run(tmp_path: Path) -> None:
+    out = tmp_path / "out"
+    runner.invoke(app, ["run", str(write_suite(tmp_path)), "--out", str(out)])
+
+    result = runner.invoke(app, ["report", str(out)])
+
+    assert result.exit_code == 0, result.output
+    assert "greeting" in result.output
+    assert "1/1 cases passed" in result.output
+
+
+def test_report_rejects_a_folder_without_a_run(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["report", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "Cannot read a run" in result.output
 
 
 def test_run_exits_with_1_and_shows_why_a_case_failed(tmp_path: Path) -> None:

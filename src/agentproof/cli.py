@@ -3,6 +3,7 @@
 import importlib
 import sys
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -11,7 +12,8 @@ import typer
 from agentproof.adapters import AgentAdapter
 from agentproof.evaluators import check_suite
 from agentproof.loader import SuiteError, load_suite
-from agentproof.models import Result
+from agentproof.models import Result, RunReport
+from agentproof.report import load_report, print_report, save_report
 from agentproof.runner import default_output_dir, run_suite, save_results
 
 app = typer.Typer(
@@ -36,7 +38,7 @@ def run(
     model: Annotated[str | None, typer.Option(help="Model name.")] = None,
     out: Annotated[Path | None, typer.Option(help="Folder for the results.")] = None,
 ) -> None:
-    """Run a suite against an agent and save every transcript as JSON."""
+    """Run a suite against an agent, check it and save the results."""
     try:
         suite = load_suite(suite_path)
     except SuiteError as error:
@@ -57,25 +59,37 @@ def run(
         f" (prompt {adapter.prompt_version}, model {adapter.model})"
     )
     results = run_suite(adapter, suite, on_result=_print_progress)
+    report = RunReport(
+        suite=suite.name,
+        model=adapter.model,
+        prompt_version=adapter.prompt_version,
+        created_at=datetime.now(),
+        results=results,
+    )
     save_results(results, out_dir)
-    typer.echo(f"Transcripts saved to {out_dir}")
+    save_report(report, out_dir)
 
-    passed = sum(result.passed for result in results)
-    typer.echo(f"{passed}/{len(results)} cases passed")
-    if passed < len(results):
+    typer.echo("")
+    print_report(report)
+    typer.echo(f"Results saved to {out_dir}")
+    if report.passed_count < len(results):
         raise typer.Exit(code=1)
 
 
+@app.command()
+def report(
+    run_dir: Annotated[Path, typer.Argument(help="Folder of a previous run.")],
+) -> None:
+    """Show the report of a previous run again."""
+    try:
+        saved = load_report(run_dir)
+    except (OSError, ValueError) as error:
+        _fail(f"Cannot read a run from {run_dir}: {error}")
+    print_report(saved)
+
+
 def _print_progress(result: Result) -> None:
-    if result.error:
-        typer.echo(f"  ERROR {result.case_id}: {result.error}")
-    elif result.passed:
-        typer.echo(f"  PASS  {result.case_id}")
-    else:
-        typer.echo(f"  FAIL  {result.case_id}")
-        for check in result.checks:
-            if not check.passed:
-                typer.echo(f"        {check.rule}: {check.detail}")
+    typer.echo(f"  {result.status:<5} {result.case_id}")
 
 
 def _load_factory(target: str) -> Callable[..., AgentAdapter]:
