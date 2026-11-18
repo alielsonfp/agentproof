@@ -11,6 +11,7 @@ import typer
 from dotenv import load_dotenv
 
 from agentproof.adapters import AgentAdapter
+from agentproof.compare import compare_reports, print_comparison
 from agentproof.evaluators import Judge, check_suite, uses_judge
 from agentproof.loader import SuiteError, load_suite
 from agentproof.models import Result, RunReport
@@ -97,6 +98,31 @@ def report(
     except (OSError, ValueError) as error:
         _fail(f"Cannot read a run from {run_dir}: {error}")
     print_report(saved)
+
+
+@app.command()
+def compare(
+    base_dir: Annotated[Path, typer.Argument(help="Folder of the base run (before).")],
+    new_dir: Annotated[Path, typer.Argument(help="Folder of the new run (after).")],
+) -> None:
+    """Compare two runs and show what improved and what regressed.
+
+    Exits with code 1 when something regressed, so CI can block the change.
+    """
+    reports = []
+    for run_dir in (base_dir, new_dir):
+        try:
+            reports.append(load_report(run_dir))
+        except (OSError, ValueError) as error:
+            _fail(f"Cannot read a run from {run_dir}: {error}")
+    base, new = reports
+    if base.suite != new.suite:
+        _fail(f"Runs are from different suites: '{base.suite}' and '{new.suite}'.")
+
+    comparison = compare_reports(base, new)
+    print_comparison(comparison)
+    if comparison.has_regressions:
+        raise typer.Exit(code=1)
 
 
 def _print_progress(result: Result) -> None:
