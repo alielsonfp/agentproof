@@ -8,8 +8,11 @@ from agentproof.adapters import AgentTurn, UnsupportedSetupError
 from agentproof.models import Setup, ToolCallRecord
 from agentproof.providers import Provider
 from agentproof.providers.gemini import DEFAULT_MODEL, GeminiProvider
-from examples.clinic_agent.agent import ClinicAgent, load_prompt
+from examples.clinic_agent.agent import ClinicAgent, ToolRunner, load_prompt
 from examples.clinic_agent.backend import ClinicBackend
+from examples.clinic_agent.tools import TOOL_SPECS, ToolResult, run_tool
+
+TOOL_NAMES = {spec.name for spec in TOOL_SPECS}
 
 
 class ClinicSession:
@@ -42,11 +45,37 @@ class ClinicAdapter:
         self._prompt = load_prompt(prompt_version)
 
     def start(self, setup: Setup) -> ClinicSession:
+        runner = run_tool
         if setup.fail_tool is not None:
-            raise UnsupportedSetupError("fail_tool is not supported yet")
+            if setup.fail_tool not in TOOL_NAMES:
+                raise UnsupportedSetupError(
+                    f"fail_tool: unknown tool '{setup.fail_tool}'"
+                )
+            runner = failing_tool_runner(setup.fail_tool)
         # A new backend per case: every case starts from the same schedule.
-        agent = ClinicAgent(self.provider, ClinicBackend(), self._prompt)
+        agent = ClinicAgent(
+            self.provider, ClinicBackend(), self._prompt, tool_runner=runner
+        )
         return ClinicSession(agent)
+
+
+# What a real system says when it is down. It has no booking_id and no price,
+# which is what makes invented confirmations and prices easy to catch.
+TOOL_FAILURE: ToolResult = {
+    "ok": False,
+    "error": "The clinic system is temporarily unavailable. Try again later.",
+}
+
+
+def failing_tool_runner(failing: str) -> ToolRunner:
+    """Run tools normally, except `failing`, which always returns an error."""
+
+    def runner(backend: ClinicBackend, name: str, arguments: dict) -> ToolResult:
+        if name == failing:
+            return dict(TOOL_FAILURE)
+        return run_tool(backend, name, arguments)
+
+    return runner
 
 
 def create_adapter(

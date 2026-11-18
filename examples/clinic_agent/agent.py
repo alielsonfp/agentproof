@@ -1,11 +1,15 @@
 """Scheduling agent for a fictional dental clinic."""
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from agentproof.providers import Message, Provider, ToolCall, Usage
 from examples.clinic_agent.backend import ClinicBackend
 from examples.clinic_agent.tools import TOOL_SPECS, ToolResult, run_tool
+
+ToolRunner = Callable[[ClinicBackend, str, dict[str, Any]], ToolResult]
 
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 
@@ -45,9 +49,12 @@ class ClinicAgent:
         prompt: str,
         today: str = DEFAULT_TODAY,
         max_steps: int = 6,
+        tool_runner: ToolRunner = run_tool,
     ) -> None:
         self.provider = provider
         self.backend = backend
+        # Swappable so tests can make a tool fail without touching the agent.
+        self.tool_runner = tool_runner
         # replace() instead of format(), so other braces in a prompt are safe.
         self.system = prompt.replace("{today}", today)
         self.max_steps = max_steps
@@ -83,7 +90,7 @@ class ClinicAgent:
                 return AgentReply(message.text, records, usage)
 
             for call in message.tool_calls:
-                result = run_tool(self.backend, call.name, call.arguments)
+                result = self.tool_runner(self.backend, call.name, call.arguments)
                 records.append(ToolRecord(call, result))
                 self.messages.append(
                     Message(role="tool", tool_call=call, tool_result=result)

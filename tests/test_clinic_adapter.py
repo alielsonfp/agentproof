@@ -4,7 +4,12 @@ from fakes import ScriptedProvider
 from agentproof.adapters import UnsupportedSetupError
 from agentproof.models import Setup
 from agentproof.providers import Message, ToolCall
-from examples.clinic_agent.adapter import ClinicAdapter
+from examples.clinic_agent.adapter import (
+    TOOL_FAILURE,
+    ClinicAdapter,
+    failing_tool_runner,
+)
+from examples.clinic_agent.backend import ClinicBackend
 
 
 def test_session_turns_agent_reply_into_agent_turn() -> None:
@@ -56,8 +61,49 @@ def test_each_session_starts_with_a_fresh_schedule() -> None:
     assert second.tool_calls[0].result["ok"] is True
 
 
-def test_fail_tool_is_not_supported_yet() -> None:
+BOOK_ARGS = {
+    "slot_id": 2,
+    "procedure": "cleaning",
+    "patient_name": "Joao Silva",
+    "patient_phone": "11900000002",
+}
+
+
+def test_fail_tool_makes_only_that_tool_fail() -> None:
+    provider = ScriptedProvider(
+        Message(
+            role="assistant",
+            tool_calls=[
+                ToolCall(
+                    "check_availability",
+                    {"date": "2027-03-01", "procedure": "cleaning"},
+                ),
+                ToolCall("book_appointment", BOOK_ARGS),
+            ],
+        ),
+        Message(role="assistant", text="Desculpe, o sistema está fora do ar."),
+    )
+    session = ClinicAdapter(provider).start(Setup(fail_tool="book_appointment"))
+
+    turn = session.send("marca pra mim")
+
+    availability, booking = turn.tool_calls
+    assert availability.result["ok"] is True
+    assert booking.result == TOOL_FAILURE
+    assert "booking_id" not in booking.result
+
+
+def test_failed_booking_does_not_reach_the_backend() -> None:
+    runner = failing_tool_runner("book_appointment")
+    backend = ClinicBackend()
+
+    runner(backend, "book_appointment", BOOK_ARGS)
+
+    assert 2 in [s.id for s in backend.available_slots("2027-03-01")]
+
+
+def test_fail_tool_with_unknown_tool_is_rejected() -> None:
     adapter = ClinicAdapter(ScriptedProvider())
 
-    with pytest.raises(UnsupportedSetupError):
-        adapter.start(Setup(fail_tool="book_appointment"))
+    with pytest.raises(UnsupportedSetupError, match="unknown tool 'send_email'"):
+        adapter.start(Setup(fail_tool="send_email"))
