@@ -5,15 +5,17 @@ from datetime import datetime
 from pathlib import Path
 
 from agentproof.adapters import AgentAdapter
-from agentproof.evaluators import evaluate
+from agentproof.evaluators import Judge, evaluate
 from agentproof.models import Result, Suite, TestCase, Transcript, TranscriptTurn
 
 
-def run_case(adapter: AgentAdapter, case: TestCase) -> Result:
+def run_case(
+    adapter: AgentAdapter, case: TestCase, judge: Judge | None = None
+) -> Result:
     """Play every turn of a case, check it, and return the result.
 
-    A crash (timeout, bad setup, ...) does not stop the suite: it becomes the
-    result's error, and the turns played before it are kept for debugging.
+    A crash (timeout, bad setup, judge down, ...) does not stop the suite: it
+    becomes the result's error, and the turns played before it are kept.
     """
     transcript = Transcript(
         case_id=case.id, model=adapter.model, prompt_version=adapter.prompt_version
@@ -32,6 +34,7 @@ def run_case(adapter: AgentAdapter, case: TestCase) -> Result:
             )
             transcript.input_tokens += reply.input_tokens
             transcript.output_tokens += reply.output_tokens
+        checks = evaluate(case, transcript, judge)
     except Exception as error:  # any crash is recorded in the result
         return Result(
             case_id=case.id,
@@ -40,10 +43,7 @@ def run_case(adapter: AgentAdapter, case: TestCase) -> Result:
             error=f"{type(error).__name__}: {error}",
         )
     return Result(
-        case_id=case.id,
-        severity=case.severity,
-        checks=evaluate(case, transcript),
-        transcript=transcript,
+        case_id=case.id, severity=case.severity, checks=checks, transcript=transcript
     )
 
 
@@ -51,12 +51,13 @@ def run_suite(
     adapter: AgentAdapter,
     suite: Suite,
     on_result: Callable[[Result], None] | None = None,
+    judge: Judge | None = None,
 ) -> list[Result]:
     """Run every case in order. `on_result` is called as each case finishes,
     so the CLI can show progress."""
     results = []
     for case in suite.cases:
-        result = run_case(adapter, case)
+        result = run_case(adapter, case, judge)
         results.append(result)
         if on_result is not None:
             on_result(result)

@@ -8,11 +8,13 @@ from pathlib import Path
 from typing import Annotated, NoReturn
 
 import typer
+from dotenv import load_dotenv
 
 from agentproof.adapters import AgentAdapter
-from agentproof.evaluators import check_suite
+from agentproof.evaluators import Judge, check_suite, uses_judge
 from agentproof.loader import SuiteError, load_suite
 from agentproof.models import Result, RunReport
+from agentproof.providers.gemini import DEFAULT_MODEL, GeminiProvider
 from agentproof.report import load_report, print_report, save_report
 from agentproof.runner import default_output_dir, run_suite, save_results
 
@@ -36,9 +38,13 @@ def run(
     ] = None,
     prompt: Annotated[str, typer.Option(help="Prompt version to test.")] = "v1",
     model: Annotated[str | None, typer.Option(help="Model name.")] = None,
+    judge_model: Annotated[
+        str | None, typer.Option(help="Model for judge checks (Gemini).")
+    ] = None,
     out: Annotated[Path | None, typer.Option(help="Folder for the results.")] = None,
 ) -> None:
     """Run a suite against an agent, check it and save the results."""
+    load_dotenv()  # API keys from .env
     try:
         suite = load_suite(suite_path)
     except SuiteError as error:
@@ -53,12 +59,17 @@ def run(
     factory = _load_factory(target)
     adapter = factory(prompt_version=prompt, model=model)
     out_dir = out or default_output_dir(suite.name, prompt)
+    # Only build a judge when the suite needs one, so rule-only suites never
+    # need an API key for it.
+    judge = None
+    if uses_judge(suite):
+        judge = Judge(GeminiProvider(judge_model or DEFAULT_MODEL))
 
     typer.echo(
         f"Running {len(suite.cases)} cases from '{suite.name}'"
         f" (prompt {adapter.prompt_version}, model {adapter.model})"
     )
-    results = run_suite(adapter, suite, on_result=_print_progress)
+    results = run_suite(adapter, suite, on_result=_print_progress, judge=judge)
     report = RunReport(
         suite=suite.name,
         model=adapter.model,
