@@ -1,26 +1,9 @@
 import pytest
+from fakes import ScriptedProvider
 
 from agentproof.providers import Message, ModelResponse, ToolCall, ToolSpec, Usage
 from examples.clinic_agent.agent import ClinicAgent, load_prompt
 from examples.clinic_agent.backend import ClinicBackend
-
-
-class ScriptedProvider:
-    """A fake model that returns pre-written messages, one per call."""
-
-    model = "scripted"
-
-    def __init__(self, *responses: Message) -> None:
-        self.responses = list(responses)
-        self.seen: list[list[Message]] = []  # what the agent sent each call
-        self.system = ""
-
-    def generate(
-        self, system: str, messages: list[Message], tools: list[ToolSpec]
-    ) -> ModelResponse:
-        self.system = system
-        self.seen.append(list(messages))
-        return ModelResponse(self.responses.pop(0), Usage(10, 5))
 
 
 class BrokenProvider:
