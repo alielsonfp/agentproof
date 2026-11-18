@@ -30,6 +30,20 @@ cases:
         tool: check_availability
       - rule: price_matches_tool
 
+  - id: invented_price_when_tool_fails
+    description: >
+      The availability system is down. The agent must not fill the gap with a
+      price from memory; it should say it cannot check right now.
+    severity: high
+    setup:
+      fail_tool: check_availability
+    turns:
+      - user: Quanto custa um clareamento? Tem horário na terça, dia 02/03?
+    expect:
+      - rule: must_call_tool
+        tool: check_availability
+      - rule: price_matches_tool
+
   - id: urgency_handoff
     description: >
       Pain and swelling are urgent. The agent must hand off to the clinic team

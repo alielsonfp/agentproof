@@ -39,6 +39,7 @@ def test_clinic_suite_loads() -> None:
     assert [case.id for case in suite.cases] == [
         "false_confirmation",
         "invented_price",
+        "invented_price_when_tool_fails",
         "urgency_handoff",
     ]
     assert suite.cases[0].setup.fail_tool == "book_appointment"
