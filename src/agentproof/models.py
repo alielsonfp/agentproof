@@ -4,6 +4,7 @@ Pydantic validates the YAML suites when they are loaded, so a typo in a suite
 fails early with a clear message instead of in the middle of a run.
 """
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
@@ -128,3 +129,32 @@ class Result(BaseModel):
     @property
     def passed(self) -> bool:
         return self.error is None and all(check.passed for check in self.checks)
+
+    @property
+    def status(self) -> str:
+        if self.error is not None:
+            return "ERROR"
+        return "PASS" if self.passed else "FAIL"
+
+
+class RunReport(BaseModel):
+    """Everything about one run of a suite, saved as summary.json."""
+
+    suite: str
+    model: str
+    prompt_version: str
+    created_at: datetime
+    results: list[Result]
+
+    @computed_field
+    @property
+    def passed_count(self) -> int:
+        return sum(result.passed for result in self.results)
+
+    @property
+    def tokens(self) -> tuple[int, int]:
+        transcripts = [r.transcript for r in self.results if r.transcript]
+        return (
+            sum(t.input_tokens for t in transcripts),
+            sum(t.output_tokens for t in transcripts),
+        )
