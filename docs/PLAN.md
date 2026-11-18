@@ -16,7 +16,7 @@
 - [x] Day 7: terminal report (Rich), plus JSON and Markdown
 - [x] Day 8: simulated tool failures (`fail_tool`) and the false confirmation and invented price cases
 - [x] Day 9: LLM-as-a-judge with a rubric, plus the out-of-scope and prompt injection cases
-- [ ] Day 10: version comparison: run prompt v1 and v2 and show what improved and what regressed
+- [x] Day 10: version comparison: run prompt v1 and v2 and show what improved and what regressed
 - [ ] Days 11 and 12: full README with a screenshot or GIF, more tests, refactoring
 
 ### MVP is done when

@@ -135,5 +135,6 @@ def test_today_is_filled_in_the_system_prompt(backend: ClinicBackend) -> None:
     assert provider.system == "Today is 2027-02-26."
 
 
-def test_prompt_v1_loads_and_has_today_placeholder() -> None:
-    assert "{today}" in load_prompt("v1")
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_prompts_load_and_have_today_placeholder(version: str) -> None:
+    assert "{today}" in load_prompt(version)
