@@ -5,9 +5,11 @@ Tools never raise for a bad request: errors come back as
 {"ok": False, "error": "..."} so the agent can see what went wrong and react.
 """
 
+from collections.abc import Callable
 from datetime import date as Date
 from typing import Any
 
+from agentproof.providers import ToolSpec
 from examples.clinic_agent.backend import Appointment, ClinicBackend, ClinicError
 
 ToolResult = dict[str, Any]
@@ -44,6 +46,11 @@ def book_appointment(
 ) -> ToolResult:
     """Book a slot. Only a successful result contains a booking_id."""
     try:
+        # Models sometimes send numbers as 2.0 or "2".
+        slot_id = int(slot_id)
+    except (TypeError, ValueError):
+        return _error("slot_id must be a number from check_availability.")
+    try:
         appointment = backend.book(slot_id, procedure, patient_name, patient_phone)
     except ClinicError as error:
         return _error(str(error))
@@ -77,6 +84,98 @@ def handoff_to_human(
         "ticket_id": ticket_id,
         "message": "A member of the clinic team will contact the patient shortly.",
     }
+
+
+_PROCEDURE_CODES = ["evaluation", "cleaning", "filling", "whitening"]
+_PHONE = {"type": "string", "description": "Patient phone number with area code."}
+
+# What the model sees: the name, when to use each tool and its arguments.
+TOOL_SPECS = [
+    ToolSpec(
+        name="check_availability",
+        description=(
+            "List the free appointment slots on a date and the price of the"
+            " procedure. Call this before booking."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "date": {"type": "string", "description": "Date as YYYY-MM-DD."},
+                "procedure": {"type": "string", "enum": _PROCEDURE_CODES},
+            },
+            "required": ["date", "procedure"],
+        },
+    ),
+    ToolSpec(
+        name="book_appointment",
+        description=(
+            "Book one slot for a patient. Returns a booking_id only when the"
+            " booking succeeded."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "slot_id": {
+                    "type": "integer",
+                    "description": "A slot_id returned by check_availability.",
+                },
+                "procedure": {"type": "string", "enum": _PROCEDURE_CODES},
+                "patient_name": {"type": "string", "description": "Full name."},
+                "patient_phone": _PHONE,
+            },
+            "required": ["slot_id", "procedure", "patient_name", "patient_phone"],
+        },
+    ),
+    ToolSpec(
+        name="cancel_appointment",
+        description="Cancel a booking, using its booking_id and the booking phone.",
+        parameters={
+            "type": "object",
+            "properties": {
+                "booking_id": {"type": "string", "description": "Like BK-0001."},
+                "patient_phone": _PHONE,
+            },
+            "required": ["booking_id", "patient_phone"],
+        },
+    ),
+    ToolSpec(
+        name="handoff_to_human",
+        description=(
+            "Pass the conversation to the clinic team. Use it for urgent cases"
+            " (pain, bleeding, swelling) or when the patient asks for a person."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "reason": {"type": "string", "description": "Short summary."},
+                "patient_name": {"type": "string"},
+                "patient_phone": _PHONE,
+            },
+            "required": ["reason"],
+        },
+    ),
+]
+
+_TOOLS: dict[str, Callable[..., ToolResult]] = {
+    "check_availability": check_availability,
+    "book_appointment": book_appointment,
+    "cancel_appointment": cancel_appointment,
+    "handoff_to_human": handoff_to_human,
+}
+
+
+def run_tool(
+    backend: ClinicBackend, name: str, arguments: dict[str, Any]
+) -> ToolResult:
+    """Run the tool the model asked for. Bad requests become error results."""
+    tool = _TOOLS.get(name)
+    if tool is None:
+        return _error(f"Unknown tool '{name}'.")
+    try:
+        return tool(backend, **arguments)
+    except TypeError:
+        # Missing or unexpected arguments: tell the model instead of crashing.
+        return _error(f"Invalid arguments for {name}: {sorted(arguments)}.")
 
 
 def format_brl(cents: int) -> str:

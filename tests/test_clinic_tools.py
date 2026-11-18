@@ -4,11 +4,13 @@ import pytest
 
 from examples.clinic_agent.backend import ClinicBackend
 from examples.clinic_agent.tools import (
+    TOOL_SPECS,
     book_appointment,
     cancel_appointment,
     check_availability,
     format_brl,
     handoff_to_human,
+    run_tool,
 )
 
 DATE = "2027-03-01"
@@ -98,6 +100,38 @@ def test_handoff_to_human_returns_ticket(backend: ClinicBackend) -> None:
 
 def test_handoff_to_human_without_reason_fails(backend: ClinicBackend) -> None:
     assert handoff_to_human(backend, "")["ok"] is False
+
+
+def test_book_appointment_accepts_slot_id_as_text(backend: ClinicBackend) -> None:
+    result = book_appointment(backend, "2", "cleaning", "Joao Silva", "11900000002")  # type: ignore[arg-type]
+
+    assert result["ok"] is True
+
+
+def test_run_tool_dispatches_by_name(backend: ClinicBackend) -> None:
+    result = run_tool(
+        backend, "check_availability", {"date": DATE, "procedure": "cleaning"}
+    )
+
+    assert result["ok"] is True
+
+
+def test_run_tool_reports_bad_arguments(backend: ClinicBackend) -> None:
+    result = run_tool(backend, "check_availability", {"day": DATE})
+
+    assert result == {
+        "ok": False,
+        "error": "Invalid arguments for check_availability: ['day'].",
+    }
+
+
+def test_every_tool_has_a_spec() -> None:
+    assert [s.name for s in TOOL_SPECS] == [
+        "check_availability",
+        "book_appointment",
+        "cancel_appointment",
+        "handoff_to_human",
+    ]
 
 
 def test_all_results_are_json_serializable(backend: ClinicBackend) -> None:
