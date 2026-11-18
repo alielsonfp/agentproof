@@ -5,7 +5,7 @@
 ### Week 1: foundation and the example agent
 
 - [x] Day 1: repository (WSL2 postponed), `uv init`, `pyproject.toml`, MIT license, `.gitignore`, `.env.example`, README with the vision, ruff and pytest running with one simple test
-- [ ] Day 2: fake clinic backend in SQLite and the tools (`check_availability`, `book_appointment`, `cancel_appointment`, `handoff_to_human`), with unit tests
+- [x] Day 2: fake clinic backend in SQLite and the tools (`check_availability`, `book_appointment`, `cancel_appointment`, `handoff_to_human`), with unit tests
 - [ ] Day 3: example agent with prompt v1 and the tools, chatting from the terminal
 - [ ] Day 4: Pydantic models (TestCase, Turn, Expectation, Result), YAML loader and a first suite with 3 cases
 - [ ] Day 5: runner that executes the cases and saves each transcript as JSON, including tool calls and results
