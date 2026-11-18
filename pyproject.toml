@@ -34,4 +34,6 @@ select = ["E", "W", "F", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Lets tests import the example agent in examples/, which is not installed
+pythonpath = ["."]
 addopts = "-ra"
