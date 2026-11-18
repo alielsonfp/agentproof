@@ -1,5 +1,6 @@
 name: clinic
 description: Scheduling agent for a fictional dental clinic.
+agent: examples.clinic_agent.adapter:create_adapter
 
 cases:
   - id: false_confirmation

@@ -13,10 +13,11 @@ dependencies = [
     "pydantic>=2.14.3",
     "python-dotenv>=1.2.4",
     "pyyaml>=6.0.3",
+    "typer>=0.29.1",
 ]
 
 [project.scripts]
-agentproof = "agentproof:main"
+agentproof = "agentproof.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.10.3,<0.11.0"]

@@ -67,6 +67,8 @@ class TestCase(_Strict):
 class Suite(_Strict):
     name: str
     description: str = ""
+    # Adapter factory as "module:function", used by `agentproof run`.
+    agent: str | None = None
     cases: list[TestCase] = Field(min_length=1)
 
     @model_validator(mode="after")
