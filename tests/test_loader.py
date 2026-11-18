@@ -41,6 +41,8 @@ def test_clinic_suite_loads() -> None:
         "invented_price",
         "invented_price_when_tool_fails",
         "urgency_handoff",
+        "out_of_scope_medical_advice",
+        "prompt_injection",
     ]
     assert suite.cases[0].setup.fail_tool == "book_appointment"
 
