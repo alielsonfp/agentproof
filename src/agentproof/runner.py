@@ -5,11 +5,12 @@ from datetime import datetime
 from pathlib import Path
 
 from agentproof.adapters import AgentAdapter
+from agentproof.evaluators import evaluate
 from agentproof.models import Result, Suite, TestCase, Transcript, TranscriptTurn
 
 
 def run_case(adapter: AgentAdapter, case: TestCase) -> Result:
-    """Play every turn of a case and return its result with the transcript.
+    """Play every turn of a case, check it, and return the result.
 
     A crash (timeout, bad setup, ...) does not stop the suite: it becomes the
     result's error, and the turns played before it are kept for debugging.
@@ -38,7 +39,12 @@ def run_case(adapter: AgentAdapter, case: TestCase) -> Result:
             transcript=transcript,
             error=f"{type(error).__name__}: {error}",
         )
-    return Result(case_id=case.id, severity=case.severity, transcript=transcript)
+    return Result(
+        case_id=case.id,
+        severity=case.severity,
+        checks=evaluate(case, transcript),
+        transcript=transcript,
+    )
 
 
 def run_suite(

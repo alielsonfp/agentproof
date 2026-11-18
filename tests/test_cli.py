@@ -37,8 +37,32 @@ def test_run_saves_transcripts(tmp_path: Path) -> None:
     result = runner.invoke(app, ["run", str(write_suite(tmp_path)), "--out", str(out)])
 
     assert result.exit_code == 0, result.output
-    assert "ran   greeting" in result.output
+    assert "PASS  greeting" in result.output
+    assert "1/1 cases passed" in result.output
     assert (out / "greeting.json").exists()
+
+
+def test_run_exits_with_1_and_shows_why_a_case_failed(tmp_path: Path) -> None:
+    suite = write_suite(tmp_path, message="quero pagar com Pix")
+
+    result = runner.invoke(app, ["run", str(suite), "--out", str(tmp_path / "out")])
+
+    assert result.exit_code == 1
+    assert "FAIL  greeting" in result.output
+    assert "must_not_contain: turn 1 contains 'Pix'" in result.output
+
+
+def test_run_rejects_unknown_rules_before_running(tmp_path: Path) -> None:
+    suite = write_suite(tmp_path)
+    suite.write_text(
+        suite.read_text(encoding="utf-8").replace("must_not_contain", "be_nice"),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["run", str(suite)])
+
+    assert result.exit_code == 2
+    assert "unknown rule 'be_nice'" in result.output
 
 
 def test_run_exits_with_1_when_a_case_crashes(tmp_path: Path) -> None:

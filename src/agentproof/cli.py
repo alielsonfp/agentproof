@@ -9,6 +9,7 @@ from typing import Annotated, NoReturn
 import typer
 
 from agentproof.adapters import AgentAdapter
+from agentproof.evaluators import check_suite
 from agentproof.loader import SuiteError, load_suite
 from agentproof.models import Result
 from agentproof.runner import default_output_dir, run_suite, save_results
@@ -40,6 +41,9 @@ def run(
         suite = load_suite(suite_path)
     except SuiteError as error:
         _fail(str(error))
+    problems = check_suite(suite)
+    if problems:
+        _fail(f"{suite_path}: invalid expectations\n" + "\n".join(problems))
 
     target = agent or suite.agent
     if not target:
@@ -56,15 +60,22 @@ def run(
     save_results(results, out_dir)
     typer.echo(f"Transcripts saved to {out_dir}")
 
-    if any(result.error for result in results):
+    passed = sum(result.passed for result in results)
+    typer.echo(f"{passed}/{len(results)} cases passed")
+    if passed < len(results):
         raise typer.Exit(code=1)
 
 
 def _print_progress(result: Result) -> None:
     if result.error:
         typer.echo(f"  ERROR {result.case_id}: {result.error}")
+    elif result.passed:
+        typer.echo(f"  PASS  {result.case_id}")
     else:
-        typer.echo(f"  ran   {result.case_id}")
+        typer.echo(f"  FAIL  {result.case_id}")
+        for check in result.checks:
+            if not check.passed:
+                typer.echo(f"        {check.rule}: {check.detail}")
 
 
 def _load_factory(target: str) -> Callable[..., AgentAdapter]:

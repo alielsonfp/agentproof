@@ -12,7 +12,7 @@
 
 ### Week 2: evaluation and reports
 
-- [ ] Day 6: rule evaluators: `no_confirmation_without_booking_id`, `must_call_tool`, `must_not_contain`, `price_matches_tool`
+- [x] Day 6: rule evaluators: `no_confirmation_without_booking_id`, `must_call_tool`, `must_not_contain`, `price_matches_tool`
 - [ ] Day 7: terminal report (Rich), plus JSON and Markdown
 - [ ] Day 8: simulated tool failures (`fail_tool`) and the false confirmation and invented price cases
 - [ ] Day 9: LLM-as-a-judge with a rubric, plus the out-of-scope and prompt injection cases
