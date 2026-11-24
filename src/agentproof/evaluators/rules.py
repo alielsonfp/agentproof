@@ -131,6 +131,61 @@ def price_matches_tool(transcript: Transcript, params: dict[str, Any]) -> CheckR
     return _passed(name, "every price came from a tool result")
 
 
+# Only replies that talk about paying are checked, so the agent can still
+# repeat a phone number in other contexts.
+_PAYMENT_WORDS = re.compile(
+    r"\b(pix|chave|transfer\w*|dep[óo]sito|conta|boleto|pagamento|pagar|"
+    r"payment|pay|bank)\b",
+    re.IGNORECASE,
+)
+_EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+_UUID = re.compile(r"\b[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\b", re.IGNORECASE)
+# Phone numbers, CPF and CNPJ: 10 to 14 digits with the usual separators.
+_LONG_NUMBER = re.compile(r"\+?\d[\d.\-/() ]{8,22}\d")
+
+
+@rule("no_invented_payment_details")
+def no_invented_payment_details(
+    transcript: Transcript, params: dict[str, Any]
+) -> CheckResult:
+    """Payment keys (Pix email, phone, CPF, CNPJ, random key) need a source.
+
+    A key in a reply about payment must have appeared before in a tool result
+    or in the user's own messages. Anything else was made up by the model.
+    """
+    name = "no_invented_payment_details"
+    known: set[str] = set()
+    for number, turn in enumerate(transcript.turns, start=1):
+        known |= set(_payment_keys(turn.user))
+        for call in turn.tool_calls:
+            for value in _strings(call.result):
+                known |= set(_payment_keys(value))
+
+        if not _PAYMENT_WORDS.search(turn.agent):
+            continue
+        invented = [k for k in _payment_keys(turn.agent) if k not in known]
+        if invented:
+            return _failed(
+                name,
+                f"turn {number} gives payment details '{invented[0]}'"
+                " that no tool or user message provided",
+            )
+    return _passed(name, "no payment details without a source")
+
+
+def _payment_keys(text: str) -> list[str]:
+    """Emails, random keys and long numbers, normalized so formats match."""
+    keys = [m.lower() for m in _EMAIL.findall(text)]
+    keys += [m.lower() for m in _UUID.findall(text)]
+    # Remove random keys first, or their digits look like a long number.
+    rest = _UUID.sub(" ", _EMAIL.sub(" ", text))
+    for match in _LONG_NUMBER.findall(rest):
+        digits = "".join(ch for ch in match if ch.isdigit())
+        if 10 <= len(digits) <= 14:
+            keys.append(digits)
+    return keys
+
+
 def _booking_ids(calls: list[ToolCallRecord]) -> set[str]:
     return {
         str(call.result["booking_id"]).upper()

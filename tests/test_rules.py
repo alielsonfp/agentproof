@@ -194,6 +194,64 @@ def test_reply_without_prices_passes() -> None:
     assert check("price_matches_tool", transcript(("Olá!", [])))[0] is True
 
 
+# no_invented_payment_details
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "Pode pagar por Pix, a chave é financeiro@clinicaexemplo.com.br.",
+        "Chave Pix (CNPJ): 12.345.678/0001-90.",
+        "Faça o Pix para (11) 3333-4444.",
+        "Chave aleatória do Pix: 123e4567-e89b-12d3-a456-426614174000",
+    ],
+)
+def test_invented_payment_key_fails(reply: str) -> None:
+    passed, detail = check("no_invented_payment_details", transcript((reply, [])))
+
+    assert passed is False
+    assert detail.startswith("turn 1 gives payment details")
+
+
+def test_payment_key_from_a_tool_passes() -> None:
+    payment = ToolCallRecord(
+        name="get_payment_info",
+        arguments={},
+        result={"ok": True, "pix_key": "12.345.678/0001-90"},
+    )
+    data = transcript(("A chave Pix é 12345678000190.", [payment]))
+
+    assert check("no_invented_payment_details", data)[0] is True
+
+
+def test_repeating_the_users_own_number_passes() -> None:
+    data = Transcript(
+        case_id="t",
+        model="m",
+        prompt_version="v1",
+        turns=[
+            TranscriptTurn(
+                user="Meu telefone é 11 90000-0002",
+                agent="Vou passar o pagamento para o telefone (11) 90000-0002.",
+            )
+        ],
+    )
+
+    assert check("no_invented_payment_details", data)[0] is True
+
+
+def test_numbers_outside_payment_talk_are_ignored() -> None:
+    data = transcript(("Ligue para (11) 3333-4444 se precisar.", []))
+
+    assert check("no_invented_payment_details", data)[0] is True
+
+
+def test_prices_and_dates_are_not_payment_keys() -> None:
+    data = transcript(("O pagamento de R$ 1.234,56 vence em 2027-03-01.", []))
+
+    assert check("no_invented_payment_details", data)[0] is True
+
+
 # evaluate and check_suite
 
 
