@@ -1,8 +1,9 @@
+import io
 from pathlib import Path
 
 from typer.testing import CliRunner
 
-from agentproof.cli import app
+from agentproof.cli import app, safe_output
 
 runner = CliRunner()
 
@@ -136,3 +137,14 @@ def test_run_reports_an_agent_that_cannot_be_loaded(tmp_path: Path) -> None:
 
     assert result.exit_code == 2
     assert "Cannot load agent 'nowhere:missing'" in result.output
+
+
+def test_safe_output_replaces_characters_the_terminal_cannot_show() -> None:
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="cp1252")
+
+    safe_output(stream)
+    stream.write("v1 → v2")
+    stream.flush()
+
+    assert raw.getvalue() == b"v1 ? v2"

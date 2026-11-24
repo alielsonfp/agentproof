@@ -1,7 +1,9 @@
 """AgentProof command line."""
 
+import io
+import sys
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated, NoReturn, TextIO
 
 import typer
 
@@ -19,6 +21,19 @@ app = typer.Typer(
 @app.callback()
 def main() -> None:
     """Regression testing for customer-facing AI agents."""
+    for stream in (sys.stdout, sys.stderr):
+        safe_output(stream)
+
+
+def safe_output(stream: TextIO) -> None:
+    """Never crash on characters the terminal cannot show (like → on cp1252).
+
+    On Windows, output redirected to a file or a CI log often uses cp1252.
+    Without this, a report with an arrow would crash with exit code 1, which
+    looks exactly like "something regressed".
+    """
+    if isinstance(stream, io.TextIOWrapper):
+        stream.reconfigure(errors="replace")
 
 
 @app.command()
