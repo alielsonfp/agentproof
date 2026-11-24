@@ -36,7 +36,7 @@ The full plan (MVP checklist and roadmap) is in `docs/PLAN.md`.
 - Tests and lint: pytest + ruff
 - Example agent: an agent SDK or direct tool calling, behind a provider interface
 - Fake backend for the example agent: SQLite
-- MCP server: the official MCP Python SDK (after the MVP)
+- MCP server: the official MCP Python SDK (`mcp` 2.x, `MCPServer`)
 
 Check the current documentation of each SDK before using it. These APIs change
 often, so do not rely on memory for their exact signatures.
@@ -46,6 +46,7 @@ often, so do not rely on memory for their exact signatures.
 ```text
 src/agentproof/
   cli.py            # run, compare, report commands
+  api.py            # the same actions as functions, shared with the MCP server
   models.py         # TestCase, Turn, Expectation, Result
   loader.py         # loads YAML suites
   runner.py         # runs conversations, records transcripts with tool calls
@@ -55,7 +56,8 @@ src/agentproof/
     judge.py        # LLM-as-a-judge with rubrics
   providers/        # model providers behind one interface
   report.py         # terminal, JSON and Markdown reports
-  mcp_server.py     # after the MVP
+  compare.py        # fixed and regressed cases between two runs
+  mcp_server.py     # MCP server (agentproof-mcp), official MCP SDK 2.x
 examples/clinic_agent/
   agent.py          # scheduling agent for a fictional dental clinic
   tools.py          # check_availability, book_appointment, cancel_appointment, handoff_to_human
@@ -89,4 +91,5 @@ Conventional style, in English: `feat: ...`, `fix: ...`, `test: ...`,
 - `uv sync` to install dependencies
 - `uv run pytest` to run tests
 - `uv run ruff check .` to lint
-- `uv run agentproof run suites/clinic.yaml` to run a suite (once the CLI exists)
+- `uv run agentproof run suites/clinic.yaml` to run a suite
+- `uv run agentproof-mcp` to start the MCP server over stdio

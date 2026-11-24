@@ -28,6 +28,7 @@ every prompt change needs to be tested.
 - Simulated tool failures, to see what the agent says when a system is down
 - Compares two runs and shows what was fixed and what regressed
 - Reports in the terminal, JSON and Markdown
+- An MCP server, so an assistant can run the suites for you
 
 ## Quick start
 
@@ -155,6 +156,42 @@ Tool calls matter: most rules read them, so report every call and its result.
 `examples/clinic_agent/adapter.py` is a complete example, including
 `fail_tool`.
 
+## MCP server
+
+AgentProof also runs as an [MCP](https://modelcontextprotocol.io) server, so
+an assistant like Claude can run the suites and read the results for you
+("run the clinic suite with prompt v2 and tell me what regressed").
+
+| Tool | What it does |
+| --- | --- |
+| `list_cases` | the cases of a suite and the rules each one checks |
+| `run_suite` | runs a suite with one prompt version and saves the run (calls the model, can take minutes) |
+| `get_report` | a saved run, as a summary or as the Markdown report |
+| `compare_versions` | fixed and regressed cases between two saved runs |
+
+Add it to Claude Code:
+
+```bash
+claude mcp add agentproof -- uv run --directory /path/to/agentproof agentproof-mcp
+```
+
+Or to any client that takes a JSON config:
+
+```json
+{
+  "mcpServers": {
+    "agentproof": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/agentproof", "agentproof-mcp"]
+    }
+  }
+}
+```
+
+Paths are relative to the folder the server runs in, and the server refuses
+paths outside it, since an assistant can be steered by text it reads. It uses
+the agent named in each suite and the API keys from that folder's `.env`.
+
 ## Output
 
 Each run writes a folder (by default `reports/<suite>-<prompt>-<time>/`):
@@ -177,6 +214,7 @@ src/agentproof/
   providers/      model providers behind one interface (Gemini today)
   report.py       terminal, JSON and Markdown reports
   compare.py      fixed and regressed cases between two runs
+  mcp_server.py   the MCP server (agentproof-mcp)
 examples/clinic_agent/   scheduling agent for a fictional dental clinic
 suites/clinic.yaml       test cases for it
 ```
@@ -195,7 +233,7 @@ uv run ruff check .
 - [x] Runner, YAML suites and rule evaluators
 - [x] Reports, version comparison and simulated tool failures
 - [x] LLM judge with rubrics
-- [ ] MCP server, so any MCP-compatible assistant can run the tests
+- [x] MCP server, so any MCP-compatible assistant can run the tests
 - [ ] Simulated users with personas, over many turns
 - [ ] Repeat each case N times and report the failure rate
 - [ ] More model providers and cost per run

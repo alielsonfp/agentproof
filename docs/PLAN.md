@@ -29,8 +29,8 @@
 
 ## Week 3: MCP server
 
-- [ ] MCP server exposing `run_suite`, `list_cases`, `compare_versions` and `get_report`
-- [ ] Tests and README section for the MCP server
+- [x] MCP server exposing `run_suite`, `list_cases`, `compare_versions` and `get_report`
+- [x] Tests and README section for the MCP server
 
 ## Initial test cases
 
