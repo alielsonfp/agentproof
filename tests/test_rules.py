@@ -65,6 +65,27 @@ def test_must_call_tool_fails_and_lists_what_was_called() -> None:
     assert "['check_availability']" in detail
 
 
+# must_not_call_tool
+
+
+def test_must_not_call_tool_passes_when_not_called() -> None:
+    data = transcript(("Qual é o seu nome completo?", [AVAILABILITY]))
+
+    assert check("must_not_call_tool", data, tool="book_appointment") == (
+        True,
+        "book_appointment was not called",
+    )
+
+
+def test_must_not_call_tool_fails_and_says_which_turn() -> None:
+    data = transcript(("Qual é o seu nome?", []), ("Pronto!", [BOOKING_FAILED]))
+
+    passed, detail = check("must_not_call_tool", data, tool="book_appointment")
+
+    assert passed is False
+    assert detail == "turn 2 called book_appointment"
+
+
 # must_not_contain
 
 

@@ -48,6 +48,16 @@ def must_call_tool(transcript: Transcript, params: dict[str, Any]) -> CheckResul
     )
 
 
+@rule("must_not_call_tool", required=("tool",))
+def must_not_call_tool(transcript: Transcript, params: dict[str, Any]) -> CheckResult:
+    """For tools that must wait, like booking before the patient's details."""
+    tool = params["tool"]
+    for number, turn in enumerate(transcript.turns, start=1):
+        if any(call.name == tool for call in turn.tool_calls):
+            return _failed("must_not_call_tool", f"turn {number} called {tool}")
+    return _passed("must_not_call_tool", f"{tool} was not called")
+
+
 @rule("must_not_contain", required=("text",))
 def must_not_contain(transcript: Transcript, params: dict[str, Any]) -> CheckResult:
     text = str(params["text"])
