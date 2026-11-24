@@ -10,6 +10,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "google-genai>=3.4.0",
+    "mcp>=2.3.0",
     "pydantic>=2.14.3",
     "python-dotenv>=1.2.4",
     "pyyaml>=6.0.3",
@@ -18,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 agentproof = "agentproof.cli:app"
+agentproof-mcp = "agentproof.mcp_server:main"
 
 [build-system]
 requires = ["uv_build>=0.10.3,<0.11.0"]
